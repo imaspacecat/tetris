@@ -1,5 +1,3 @@
-# tetris
-
 # Description
 it's tetris lol
 
@@ -19,3 +17,5 @@ make
 ```bash
 ./tetris
 ```
+
+![img.png](img.png)
