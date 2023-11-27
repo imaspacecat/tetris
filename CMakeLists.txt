@@ -29,5 +29,5 @@ add_executable(tetris tetris.c
         tetris.h
 )
 
-target_link_libraries(tetris raylib m)
+target_link_libraries(tetris raylib)
 
