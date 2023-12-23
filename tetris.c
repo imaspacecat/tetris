@@ -4,6 +4,7 @@
 #include <time.h>
 #include "tetris.h"
 #include "raylib.h"
+#include <string.h>
 
 void init_board(Board *board) {
     for (int i = 0; i < board->h; ++i) {
@@ -147,7 +148,6 @@ const Shape *shapes[] = {&o_shape, &i_shape, &s_shape, &z_shape, &l_shape, &j_sh
 Shape *rand_shape() {
     int i = (rand() % 7);
     printf("%d\n", i);
-//    i = 1;
     Shape *shape = create_shape(shapes[i]->size, shapes[i]->color, shapes[i]->i_origin, shapes[i]->points);
     return shape;
 }
@@ -260,7 +260,7 @@ void down(Shape *shape, Board *board) {
     if (!is_legal_move(shape, board)) {
         move_shape(shape, UP);
         draw_shape(shape, board, 2);
-        shape->is_alive = false;
+        shape->is_alive = false; // cringe side effect
         return;
     }
     draw_shape(shape, board, 1);
@@ -278,16 +278,41 @@ void up(Shape *shape, Board *board) {
     draw_shape(shape, board, 1);
 }
 
-//Shape *create_shadow_shape(Shape *shape, Board *board) {
-//    Shape *shadow = create_shape(shape->size, LIGHTGRAY, shape->i_origin, shape->points);
-//    move_shape(shadow, DOWN);
-//    while (is_legal_move(shadow, board)) {
-//        move_shape(shadow, DOWN);
-//    }
-//    move_shape(shadow, UP);
-//
-//    return shadow;
-//}
+Shape *create_shadow(Shape *shape) {
+    Shape *shadow = create_shape(shape->size, LIGHTGRAY, shape->i_origin, shape->points);
+    return shadow;
+}
+
+void max_down(Shape *shape, Board *board) {
+    while (is_legal_move(shape, board)) {
+        move_shape(shape, DOWN);
+    }
+    move_shape(shape, UP);
+}
+
+void hard_drop(Shape *shape, Board *board) {
+    erase_shape(shape, board);
+    max_down(shape, board);
+    draw_shape(shape, board, 2);
+    shape->is_alive = false;
+}
+
+bool overlap(Shape *shape1, Shape *shape2) {
+
+}
+
+void update_shadow(Shape *shadow, Shape *shape, Board *board) {
+    if (!shape->is_alive) { // scuff fix
+        return;
+    }
+    erase_shape(shadow, board);
+    for (int i = 0; i < shape->size; i++) {
+        shadow->points[i] = shape->points[i];
+    }
+    max_down(shadow, board);
+    draw_shape(shadow, board, 3);
+}
+
 
 void copy_row(int *src, int *dst, int len) {
     for (int i = 0; i < len; i++) {
@@ -297,13 +322,15 @@ void copy_row(int *src, int *dst, int len) {
 
 void remove_row(int i_row, Board *board) {
     for (int i = i_row; i > 0; --i) {
-        copy_row(board->arr[i-1], board->arr[i], board->w);
+        copy_row(board->arr[i - 1], board->arr[i], board->w);
     }
 
     for (int i = 0; i < board->w; i++) {
         board->arr[0][i] = 0;
     }
 }
+
+
 
 // empty: 0
 // shape: 1
@@ -327,34 +354,22 @@ int main() {
 
     draw_shape(current_shape, board, 1);
 
-//    print_board(board);
-//
-//    copy_row(board->arr[0], board->arr[3], board->w);
-//    print_board(board);
-//    remove_row(3, board);
-//    print_board(board);
-//    remove_row(5, board);
-//    print_board(board);
 
-    // =============================================================================================
 
-    const int screenWidth = 1000;
-    const int screenHeight = 1000;
+    const int screen_width = 1000;
+    const int screen_height = 1000;
 
-    const int rect_size = screenWidth / board_height;
+    const int rect_size = screen_width / board_height;
 
     const float side_move_rate = 100;
     const float down_move_rate = 50;
     const float gravity_rate = 500;
     const float initial_movement_delay = 300;
 
-    int frame_count = 0;
-    double key_down_frame_time_sum = 0;
     double movement_frame_time_sum = 0;
-
     double gravity_frame_time_sum = 0;
 
-    InitWindow(screenWidth, screenHeight, "tetris");
+    InitWindow(screen_width, screen_height, "tetris");
 
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI);
     SetTargetFPS(60);
@@ -365,124 +380,155 @@ int main() {
     double initial_press_time_right = 0;
     double subsequent_press_time_right = 0;
 
+    char rows_buff[100];
 
-//    Shape *shadow = create_shadow_shape(current_shape, board) ;
-
+    Shape *shadow = create_shadow(current_shape);
+    max_down(shadow, board);
+    update_shadow(shadow, current_shape, board);
+    bool game_over = false;
+    bool quit = false;
     while (!WindowShouldClose()) {
+        if (game_over) {
+            if (IsKeyPressed(KEY_ENTER)) {
+                rows_completed = 0;
+                game_over = false;
+                init_board(board);
+                current_shape = rand_shape();
+                draw_shape(current_shape, board, 1);
+            }
+            if (IsKeyPressed(KEY_Q)) {
+                break;
+            }
+            BeginDrawing();
+            ClearBackground(BLACK);
+            DrawText("GAME OVER", screen_width / 6, screen_height / 2 - 200, 100, RED);
+            DrawText("Press ENTER to Restart", screen_width / 6, screen_height / 2 - 50, 60, GREEN);
+            DrawText("Press Q to Quit", screen_width / 6, screen_height / 2 + 50, 60, BLUE);
+            DrawText(rows_buff, screen_width / 6, screen_height / 2 + 150, 60, RED);
+        } else {
+            movement_frame_time_sum += GetFrameTime();
+            initial_press_time_left += GetFrameTime();
+            subsequent_press_time_left += GetFrameTime();
+            initial_press_time_right += GetFrameTime();
+            subsequent_press_time_right += GetFrameTime();
 
-        movement_frame_time_sum += GetFrameTime();
-        initial_press_time_left += GetFrameTime();
-        subsequent_press_time_left += GetFrameTime();
-        initial_press_time_right += GetFrameTime();
-        subsequent_press_time_right += GetFrameTime();
+            // spawn new shape once current shape dies
+            if (!current_shape->is_alive) {
+                current_shape = rand_shape();
+                draw_shape(current_shape, board, 1);
+                shadow = create_shadow(current_shape);
+                max_down(shadow, board);
+                update_shadow(shadow, current_shape, board);
+            }
 
-        // spawn new shape once current shape dies
-        if (!current_shape->is_alive) {
-            current_shape = rand_shape();
-//            shadow = create_shadow_shape(current_shape, board);
+            if (IsKeyPressed(KEY_LEFT)) {
+                left(current_shape, board);
+            }
 
-        }// else {
-//            erase_shape(shadow, board);
-//            shadow = create_shadow_shape(current_shape, board);
-//            draw_shape(shadow, board, 3);
-//        }
-
-        if (IsKeyPressed(KEY_LEFT)) {
-            left(current_shape, board);
-        }
-
-        if (IsKeyDown(KEY_LEFT)) {
-            if (initial_press_time_left * 1000 > initial_movement_delay) {
-                if (subsequent_press_time_left * 1000 > side_move_rate) {
-                    subsequent_press_time_left = 0;
-                    left(current_shape, board);
+            if (IsKeyDown(KEY_LEFT)) {
+                if (initial_press_time_left * 1000 > initial_movement_delay) {
+                    if (subsequent_press_time_left * 1000 > side_move_rate) {
+                        subsequent_press_time_left = 0;
+                        left(current_shape, board);
+                    }
                 }
             }
-        }
 
-        if (IsKeyUp(KEY_LEFT)) {
-            initial_press_time_left = 0;
-            subsequent_press_time_left = 0;
-        }
+            if (IsKeyUp(KEY_LEFT)) {
+                initial_press_time_left = 0;
+                subsequent_press_time_left = 0;
+            }
 
-        if (IsKeyPressed(KEY_RIGHT)) {
-            right(current_shape, board);
-        }
+            if (IsKeyPressed(KEY_RIGHT)) {
+                right(current_shape, board);
+            }
 
-        if (IsKeyDown(KEY_RIGHT)) {
-            if (initial_press_time_right * 1000 > initial_movement_delay) {
-                if (subsequent_press_time_right * 1000 > side_move_rate) {
-                    subsequent_press_time_right = 0;
-                    right(current_shape, board);
+            if (IsKeyDown(KEY_RIGHT)) {
+                if (initial_press_time_right * 1000 > initial_movement_delay) {
+                    if (subsequent_press_time_right * 1000 > side_move_rate) {
+                        subsequent_press_time_right = 0;
+                        right(current_shape, board);
+                    }
                 }
             }
-        }
 
-        if (IsKeyUp(KEY_RIGHT)) {
-            initial_press_time_right = 0;
-            subsequent_press_time_right = 0;
-        }
+            if (IsKeyUp(KEY_RIGHT)) {
+                initial_press_time_right = 0;
+                subsequent_press_time_right = 0;
+            }
 
-        if (IsKeyDown(KEY_DOWN)) {
-            if ((movement_frame_time_sum * 1000) > down_move_rate) {
-                movement_frame_time_sum = 0;
+            if (IsKeyDown(KEY_DOWN)) {
+                if ((movement_frame_time_sum * 1000) > down_move_rate) {
+                    movement_frame_time_sum = 0;
+                    down(current_shape, board);
+                }
+            }
+
+            if (IsKeyPressed(KEY_UP)) {
+                rotate_clockwise(current_shape, board);
+            }
+
+            if (IsKeyPressed(KEY_SPACE)) {
+                hard_drop(current_shape, board);
+            }
+
+            gravity_frame_time_sum += GetFrameTime();
+            if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_UP) || IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_RIGHT)
+                || (gravity_frame_time_sum * 1000) > gravity_rate) {
+                update_shadow(shadow, current_shape, board);
+            }
+
+            if ((gravity_frame_time_sum * 1000) > gravity_rate) {
+                print_shape(current_shape);
+                gravity_frame_time_sum = 0;
                 down(current_shape, board);
             }
-        }
-
-        if (IsKeyPressed(KEY_UP)) {
-            rotate_clockwise(current_shape, board);
-        }
-
-        gravity_frame_time_sum += GetFrameTime();
-        if ((gravity_frame_time_sum * 1000) > gravity_rate) {
-            print_shape(current_shape);
-            gravity_frame_time_sum = 0;
-            down(current_shape, board);
-        }
 
 
-        int row_count = 0;
-        // draw board
-        for (int i = 0; i < board->h; i++) {
-            for (int j = 0; j < board->w; j++) {
+            BeginDrawing();
+            int row_count = 0;
+            // draw board
+            for (int i = 0; i < board->h; i++) {
+                for (int j = 0; j < board->w; j++) {
+                    Rectangle rect = {(float) (j * rect_size), (float) (i * rect_size), (float) (rect_size),
+                                      (float) (rect_size)};
+                    if (board->arr[i][j] == 1) { // alive
+                        DrawRectangleRec(rect, current_shape->color);
+                    } else if (board->arr[i][j] == 0) { // empty
+                        DrawRectangleRec(rect, BLACK);
+                    } else if (board->arr[i][j] == 2) { // dead
+                        if (i == 0) {
+                            game_over = true;
+                        }
+                        DrawRectangleRec(rect, GRAY);
+                        row_count++;
+                    } else if (board->arr[i][j] == 3) { // shadow
+                        DrawRectangleRec(rect, shadow->color);
+                    }
+                    DrawRectangleLinesEx(rect, 0.5f, WHITE);
 
-                Rectangle rect = {(float) (j * rect_size), (float) (i * rect_size), (float) (rect_size),
-                                  (float) (rect_size)};
-                if (board->arr[i][j] == 1) { // alive
-                    DrawRectangleRec(rect, current_shape->color);
-                } else if (board->arr[i][j] == 0) { // empty
-                    DrawRectangleRec(rect, BLACK);
-                } else if (board->arr[i][j] == 2) { // dead
-                    DrawRectangleRec(rect, GRAY);
-                    row_count++;
-                } else if (board->arr[i][j] == 3) { // shadow
-                    DrawRectangleRec(rect, LIGHTGRAY);
+
                 }
-                DrawRectangleLinesEx(rect, 0.5f, WHITE);
-            }
 
-            if (row_count == board->w) {
-                remove_row(i, board);
-                printf("removed row %d\n", i);
+                if (row_count == board->w) {
+                    remove_row(i, board);
+                    rows_completed++;
+                }
+                row_count = 0;
             }
-            row_count = 0;
+            ClearBackground(BLACK);
+            snprintf(rows_buff, 100, "Rows Completed: %d", rows_completed);
+            DrawText(rows_buff, screen_width / 2 + 20, 20, 40, WHITE);
         }
-        BeginDrawing();
-
-        ClearBackground(BLACK);
-
-        DrawText("welcome to tetris !!", screenWidth / 2 + 20, 200, 40, WHITE);
 
         EndDrawing();
     }
 
     CloseWindow();
 
-    // =============================================================================================
-
     free_board(board);
     free_shape(current_shape);
+    free_shape(shadow);
 
     return 0;
 }
