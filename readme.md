@@ -1,5 +1,5 @@
 # Description
-it's tetris lol
+tetris
 
 build using raylib and c11
 
@@ -18,4 +18,4 @@ make
 ./tetris
 ```
 
-![img.png](img.png)
+![gif of game](media/tetris.gif)

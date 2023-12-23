@@ -4,7 +4,6 @@
 #include <time.h>
 #include "tetris.h"
 #include "raylib.h"
-#include <string.h>
 
 void init_board(Board *board) {
     for (int i = 0; i < board->h; ++i) {
@@ -337,6 +336,8 @@ void remove_row(int i_row, Board *board) {
 // dead:  2
 // shadow: 3
 
+
+// TODO refactor to follow https://github.com/raysan5/raylib-game-template/blob/main/src/raylib_game.c
 int main() {
     // rng bs idk what im doing
     time_t t;
@@ -487,7 +488,6 @@ int main() {
 
             BeginDrawing();
             int row_count = 0;
-            // draw board
             for (int i = 0; i < board->h; i++) {
                 for (int j = 0; j < board->w; j++) {
                     Rectangle rect = {(float) (j * rect_size), (float) (i * rect_size), (float) (rect_size),
@@ -505,7 +505,7 @@ int main() {
                     } else if (board->arr[i][j] == 3) { // shadow
                         DrawRectangleRec(rect, shadow->color);
                     }
-                    DrawRectangleLinesEx(rect, 0.5f, WHITE);
+                    DrawRectangleLinesEx(rect, 1, WHITE);
 
 
                 }

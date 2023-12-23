@@ -3,8 +3,6 @@ project(tetris C)
 
 set(CMAKE_C_STANDARD 11)
 
-
-
 # Dependencies
 set(RAYLIB_VERSION 5.0)
 find_package(raylib 5.0 QUIET) # QUIET or REQUIRED
@@ -30,4 +28,3 @@ add_executable(tetris tetris.c
 )
 
 target_link_libraries(tetris raylib)
-
