@@ -1,7 +1,7 @@
 # Description
 tetris
 
-build using raylib and c11
+built using [raylib](https://www.raylib.com/) and C
 
 # Installation
 ```bash
